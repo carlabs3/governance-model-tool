@@ -1,0 +1,126 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 220 15% 18%;
+
+    /* Brand gradient */
+    --brand-from: 191 55% 45%; /* azul */
+    --brand-to: 79 46% 50%; /* verde */
+
+    /* Status colors */
+    --success: 152 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Operations color */
+    --operations: 152 45% 48%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased font-sans text-lg;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+    line-height: 1.55;
+  }
+
+  h1 {
+    @apply text-5xl font-semibold tracking-tight;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+
+  p {
+    @apply text-base text-muted-foreground;
+  }
+}
+
+@layer components {
+  .container-narrow {
+    @apply max-w-3xl mx-auto px-6;
+  }
+
+  .container-wide {
+    @apply max-w-6xl mx-auto px-6;
+  }
+
+  .section-card {
+    @apply rounded-2xl border border-border/60 bg-card p-6 md:p-8;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white transition;
+    background: linear-gradient(135deg, hsl(var(--brand-from)), hsl(var(--brand-to)));
+  }
+
+  .btn-primary:hover {
+    opacity: 0.92;
+  }
+
+  .btn-outline-blue {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium border text-white transition;
+    border-color: hsl(var(--brand-from));
+    background-color: transparent;
+  }
+
+  .btn-outline-blue:hover {
+    background: hsl(var(--brand-from));
+    color: white;
+  }
+
+  /* Canvas section cards */
+  .canvas-section {
+    @apply rounded-xl border border-border/60 bg-card p-4 transition-all duration-200;
+    @apply hover:border-brand-primary/30 hover:shadow-md hover:shadow-brand-primary/5;
+  }
+
+  /* Page transition wrapper */
+  .page-transition {
+    animation: page-enter 0.4s ease-out;
+  }
+
+  @keyframes page-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Animate children stagger */
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out both;
+  }
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Progress bar brand gradient */
+  .progress-brand [data-state="complete"],
+  .progress-brand > div > div {
+    background: linear-gradient(90deg, hsl(var(--brand-from)), hsl(var(--brand-to))) !important;
+  }
+}
