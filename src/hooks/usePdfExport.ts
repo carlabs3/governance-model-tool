@@ -107,7 +107,10 @@ export const usePdfExport = () => {
       const pageW = PAGE.w;
       const pageH = layout.pageHeight;
       const mx = PAGE.mx;
-      const pdf = new jsPDF({ unit: "mm", format: [pageW, pageH] });
+      // jsPDF reorders [w,h] by orientation (portrait ⇒ w≤h, landscape ⇒ w≥h).
+      // Pick the one that keeps width = 297 whether the page is short or tall.
+      const orientation = pageH >= pageW ? "portrait" : "landscape";
+      const pdf = new jsPDF({ unit: "mm", orientation, format: [pageW, pageH] });
 
       // ── Two-tone top bar ──
       const barH = 2;
