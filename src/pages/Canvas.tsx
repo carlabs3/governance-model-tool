@@ -202,6 +202,7 @@ const Canvas = () => {
         open={showFocusDialog}
         onOpenChange={setShowFocusDialog}
         onSave={handleFocusSave}
+        templateId={currentProject.templateId}
       />
 
       <ShareByEmailDialog

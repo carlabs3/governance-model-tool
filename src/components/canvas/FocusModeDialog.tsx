@@ -9,10 +9,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Check, Circle, Pencil, Shield } from 'lucide-react';
+import { Check, Circle, Lightbulb, Pencil, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CanvasSection, SectionStatus } from '@/types/governance';
-import { SECTION_METADATA } from '@/types/governance';
+import { SECTION_METADATA, GOVERNANCE_TEMPLATES } from '@/types/governance';
 import { AuthContext } from '@/context/AuthContext';
 
 const SENSITIVE_SECTIONS = ['finances', 'legal-status', 'decision-making'];
@@ -27,22 +27,36 @@ interface FocusModeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (sectionId: string, content: string, status: SectionStatus) => void;
+  templateId?: string;
 }
+
+// Example responses come from the applied template's defaultContent, falling
+// back to the "public-board" template when the canvas is Custom.
+const getExampleContent = (sectionId: string, templateId?: string): string => {
+  const template =
+    GOVERNANCE_TEMPLATES.find((t) => t.id === templateId) ??
+    GOVERNANCE_TEMPLATES.find((t) => t.id === 'public-board');
+  return template?.defaultContent[sectionId] ?? '';
+};
 
 export const FocusModeDialog = ({
   section,
   open,
   onOpenChange,
   onSave,
+  templateId,
 }: FocusModeDialogProps) => {
   const [content, setContent] = useState('');
   const [status, setStatus] = useState<SectionStatus>('empty');
+  const [showExample, setShowExample] = useState(false);
   const { isAuthenticated } = useSafeAuth();
 
   useEffect(() => {
     if (section) {
       setContent(section.content);
       setStatus(section.status);
+      // Give the example more presence on empty sections (it helps most there).
+      setShowExample(section.content.trim() === '');
     }
   }, [section]);
 
@@ -50,6 +64,7 @@ export const FocusModeDialog = ({
 
   const metadata = SECTION_METADATA[section.id];
   const isSensitive = SENSITIVE_SECTIONS.includes(section.id);
+  const example = getExampleContent(section.id, templateId);
 
   const handleSave = () => {
     let newStatus: SectionStatus;
@@ -133,6 +148,33 @@ export const FocusModeDialog = ({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {example && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowExample((v) => !v)}
+                className="flex items-center gap-1.5 text-xs font-medium text-brand-primary hover:opacity-80 transition-opacity"
+                aria-expanded={showExample}
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                {showExample ? 'Hide example' : 'See example'}
+              </button>
+              {showExample && (
+                <div className="rounded-xl border border-brand-secondary/30 bg-brand-secondary/[0.06] p-4 space-y-1.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Example response
+                  </p>
+                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line">
+                    {example}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground italic pt-1">
+                    For reference only — this is not added to your content.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
