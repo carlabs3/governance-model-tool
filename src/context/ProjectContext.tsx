@@ -13,6 +13,7 @@ interface ProjectContextType {
   clearCurrentProject: () => void;
   applyTemplate: (templateId?: string) => Promise<void>;
   updateProjectStatus: () => void;
+  renameProject: (name: string) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -254,9 +255,38 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [currentProject]);
 
+  const renameProject = useCallback(async (name: string) => {
+    if (!currentProject) return;
+
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 120) {
+      toast.error('Name must be between 1 and 120 characters');
+      return;
+    }
+    if (trimmed === currentProject.name) return;
+
+    // Use RPC to rename server-side with access code validation
+    const { data, error } = await supabase.rpc('update_project_name_by_access_code', {
+      p_code: currentProject.accessCode,
+      p_project_id: currentProject.id,
+      p_name: trimmed,
+    });
+
+    if (error || data === false) {
+      console.error('Error renaming project:', error);
+      toast.error('Could not rename the project');
+      return;
+    }
+
+    const updatedProject = { ...currentProject, name: trimmed, updatedAt: new Date() };
+    setCurrentProject(updatedProject);
+    setProjects(prev => prev.map(p => (p.id === updatedProject.id ? updatedProject : p)));
+    toast.success('Project renamed');
+  }, [currentProject]);
+
   const saveProject = useCallback(async () => {
     if (!currentProject) return;
-    
+
     try {
       // Use RPC to save each section with access code validation
       for (const section of currentProject.sections) {
@@ -355,6 +385,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
         clearCurrentProject,
         applyTemplate,
         updateProjectStatus,
+        renameProject,
         isLoading,
       }}
     >

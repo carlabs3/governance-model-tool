@@ -186,6 +186,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_project_name_by_access_code: {
+        Args: { p_code: string; p_name: string; p_project_id: string }
+        Returns: boolean
+      }
       update_project_status_by_access_code: {
         Args: { p_code: string; p_project_id: string; p_status: string }
         Returns: boolean

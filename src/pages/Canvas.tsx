@@ -18,7 +18,7 @@ import { GOVERNANCE_TEMPLATES, CanvasSection, SectionStatus } from '@/types/gove
 
 const Canvas = () => {
   const navigate = useNavigate();
-  const { currentProject, updateSection, saveProject, clearCurrentProject, applyTemplate, updateProjectStatus } = useProject();
+  const { currentProject, updateSection, saveProject, clearCurrentProject, applyTemplate, updateProjectStatus, renameProject } = useProject();
   const { toast } = useToast();
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
@@ -123,6 +123,7 @@ const Canvas = () => {
         onOpenShareEmail={() => setShowShareDialog(true)}
         isExporting={isExporting}
         onRestartTutorial={restartOnboarding}
+        onRename={renameProject}
       />
 
       {/* Autosave indicator */}

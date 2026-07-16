@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import logoSrc from "@/assets/NEU-logo_RGB_main-color.png";
-import { Layers, Home, Save, Settings2, Download, Mail, MoreHorizontal, HelpCircle } from "lucide-react";
+import { Layers, Home, Save, Settings2, Download, Mail, MoreHorizontal, HelpCircle, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ interface CanvasHeaderProps {
   onOpenShareEmail: () => void;
   isExporting: boolean;
   onRestartTutorial: () => void;
+  onRename: (name: string) => void;
 }
 
 export const CanvasHeader = ({
@@ -31,8 +32,25 @@ export const CanvasHeader = ({
   onOpenShareEmail,
   isExporting,
   onRestartTutorial,
+  onRename,
 }: CanvasHeaderProps) => {
   const isMobile = useIsMobile();
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(project.name);
+
+  const startRename = () => {
+    setDraftName(project.name);
+    setEditingName(true);
+  };
+  const commitRename = () => {
+    setEditingName(false);
+    const trimmed = draftName.trim();
+    if (trimmed && trimmed !== project.name) onRename(trimmed);
+  };
+  const cancelRename = () => {
+    setEditingName(false);
+    setDraftName(project.name);
+  };
 
   return (
     <header className="border-b border-border/60 bg-background/80 backdrop-blur-xl sticky top-0 z-10">
@@ -44,7 +62,31 @@ export const CanvasHeader = ({
               <Layers className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="font-semibold text-sm leading-tight text-foreground">{project.name}</h1>
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename();
+                    if (e.key === "Escape") cancelRename();
+                  }}
+                  maxLength={120}
+                  aria-label="Project name"
+                  className="font-semibold text-sm leading-tight text-foreground bg-transparent border-b border-brand-primary/50 outline-none w-52"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={startRename}
+                  title="Rename project"
+                  className="group flex items-center gap-1 font-semibold text-sm leading-tight text-foreground hover:text-brand-primary transition-colors"
+                >
+                  <span className="truncate max-w-[220px]">{project.name}</span>
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                </button>
+              )}
               <p className="text-[11px] text-muted-foreground">Governance Model Canvas</p>
             </div>
           </div>
