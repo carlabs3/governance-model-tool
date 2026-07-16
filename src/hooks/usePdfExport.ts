@@ -127,8 +127,48 @@ export const usePdfExport = () => {
         pdf.addImage(logoData, "PNG", pageW - mx - logoW, headerY - 3, logoW, logoH);
       }
 
+      // ── Access code badge (top-right, to the left of the logo) ──
+      const code = project.accessCode || "—";
+      const badgePad = 4;
+      const badgeH = 13;
+      const badgeY = 9;
+      const codeCharSpace = 0.6;
+      const labelCharSpace = 0.3;
+
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(20);
+      pdf.setFontSize(17);
+      const codeTextW = pdf.getTextWidth(code) + codeCharSpace * Math.max(code.length - 1, 0);
+      pdf.setFontSize(6);
+      const labelTextW = pdf.getTextWidth("ACCESS CODE") + labelCharSpace * 10;
+
+      const badgeW = Math.max(44, Math.max(codeTextW, labelTextW) + badgePad * 2);
+      const logoLeftX = pageW - mx - logoW;
+      const badgeX = logoLeftX - 6 - badgeW;
+
+      pdf.setFillColor(245, 249, 238);
+      pdf.roundedRect(badgeX, badgeY, badgeW, badgeH, 2.5, 2.5, "F");
+      pdf.setDrawColor(BRAND_SECONDARY.r, BRAND_SECONDARY.g, BRAND_SECONDARY.b);
+      pdf.setLineWidth(0.4);
+      pdf.roundedRect(badgeX, badgeY, badgeW, badgeH, 2.5, 2.5, "S");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6);
+      pdf.setTextColor(120, 140, 80);
+      pdf.text("ACCESS CODE", badgeX + badgePad, badgeY + 4.5, { charSpace: labelCharSpace });
+
+      pdf.setFontSize(17);
+      pdf.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
+      pdf.text(code, badgeX + badgePad, badgeY + 11, { charSpace: codeCharSpace });
+
+      // ── Title (single line; shrink to fit down to a 14pt floor, never wraps) ──
+      const availTitleW = badgeX - 6 - mx;
+      let titleFS = 20;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(titleFS);
+      while (titleFS > 14 && pdf.getTextWidth(project.name) > availTitleW) {
+        titleFS -= 0.5;
+        pdf.setFontSize(titleFS);
+      }
       pdf.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
       pdf.text(project.name, mx, headerY + 2);
 
@@ -137,22 +177,6 @@ export const usePdfExport = () => {
       pdf.setFontSize(8);
       pdf.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
       pdf.text("Governance Model Canvas", mx, subtitleY);
-
-      const code = project.accessCode || "—";
-      const codeLabel = "Access Code: ";
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(8);
-      const codeW = pdf.getTextWidth(code);
-      const codeRightX = pageW - mx;
-      const codeY = subtitleY + 6;
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
-      const codeLabelW = pdf.getTextWidth(codeLabel);
-      pdf.text(codeLabel, codeRightX - codeW - codeLabelW, codeY);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(BRAND_PRIMARY.r, BRAND_PRIMARY.g, BRAND_PRIMARY.b);
-      pdf.text(code, codeRightX - codeW, codeY);
 
       const sepY = subtitleY + 3;
       pdf.setDrawColor(BORDER.r, BORDER.g, BORDER.b);
