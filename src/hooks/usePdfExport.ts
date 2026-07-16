@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { jsPDF } from "jspdf";
-import type { GovernanceCanvas, CanvasSection } from "@/types/governance";
+import type { GovernanceCanvas } from "@/types/governance";
+import {
+  computeCanvasLayout,
+  type CardPlan,
+  METRICS,
+  PAGE,
+  GAP,
+  GRID_START_Y,
+  CAT_H,
+  HALF_W,
+} from "@/lib/pdfCanvasLayout";
 import logoSrc from "@/assets/NEU-logo_RGB_main-color.png";
 import euFlagSrc from "@/assets/eu-flag.png";
 
@@ -9,7 +19,6 @@ const BRAND_SECONDARY = { r: 175, g: 203, b: 114 };
 const TEXT_DARK = { r: 35, g: 40, b: 50 };
 const TEXT_MUTED = { r: 150, g: 150, b: 155 };
 const BORDER = { r: 220, g: 220, b: 225 };
-const DIVIDER = { r: 235, g: 235, b: 238 };
 const EMPTY_TEXT = { r: 200, g: 200, b: 205 };
 
 const loadImageAsBase64 = (src: string): Promise<string> =>
@@ -29,104 +38,52 @@ const loadImageAsBase64 = (src: string): Promise<string> =>
     img.src = src;
   });
 
-const wrapText = (pdf: jsPDF, text: string, maxWidth: number): string[] => {
-  if (!text) return [];
-  const paragraphs = text.split("\n");
-  const allLines: string[] = [];
-  for (const para of paragraphs) {
-    if (!para.trim()) {
-      allLines.push("");
-      continue;
-    }
-    const words = para.split(" ");
-    let line = "";
-    for (const word of words) {
-      const test = line ? `${line} ${word}` : word;
-      if (pdf.getTextWidth(test) > maxWidth) {
-        if (line) allLines.push(line);
-        line = word;
-      } else {
-        line = test;
-      }
-    }
-    if (line) allLines.push(line);
-  }
-  return allLines;
-};
-const calcCardHeight = (pdf: jsPDF, section: CanvasSection, w: number): number => {
-  const padding = 4;
-  const innerW = w - padding * 2;
+const drawCard = (pdf: jsPDF, card: CardPlan): void => {
+  const { x, y, w, h } = card;
 
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7);
-  const descLines = wrapText(pdf, section.description, innerW - 4).slice(0, 2);
-  const descH = descLines.length * 3.2;
-
-  pdf.setFontSize(7.5);
-  const contentLines = section.content?.trim() ? wrapText(pdf, section.content, innerW - 2) : [];
-  const contentH = contentLines.length > 0 ? contentLines.length * 3.2 : 3.2;
-
-  return padding + 3 + 5 + descH + 3 + 0.15 + 4 + contentH + padding;
-};
-
-const drawSectionCard = (pdf: jsPDF, section: CanvasSection, x: number, y: number, w: number, cardH: number): void => {
-  const padding = 4;
-  const innerW = w - padding * 2;
-  const isStrategy = section.category === "strategy";
-  const catColor = isStrategy ? BRAND_PRIMARY : BRAND_SECONDARY;
-
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(7);
-  const descLines = wrapText(pdf, section.description, innerW - 4).slice(0, 2);
-
-  pdf.setFontSize(7.5);
-  const contentLines = section.content?.trim() ? wrapText(pdf, section.content, innerW - 2) : [];
-
+  // Card background + border
   pdf.setFillColor(255, 255, 255);
-  pdf.roundedRect(x, y, w, cardH, 3, 3, "F");
-
+  pdf.roundedRect(x, y, w, h, 3, 3, "F");
   pdf.setDrawColor(225, 225, 230);
   pdf.setLineWidth(0.3);
-  pdf.roundedRect(x, y, w, cardH, 3, 3, "S");
+  pdf.roundedRect(x, y, w, h, 3, 3, "S");
 
-  let curY = y + padding + 3;
+  let curY = y + METRICS.pad + METRICS.cardTop;
 
+  // Title
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(9);
+  pdf.setFontSize(METRICS.titleFS);
   pdf.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
-  pdf.text(section.title, x + padding, curY);
-  curY += 4.5;
+  pdf.text(card.section.title, x + METRICS.pad, curY);
+  curY += METRICS.titleAdvance;
 
+  // Description
   pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(6.5);
+  pdf.setFontSize(METRICS.descFS);
   pdf.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
-  for (const line of descLines) {
-    pdf.text(line, x + padding, curY);
-    curY += 3;
+  for (const line of card.descLines) {
+    pdf.text(line, x + METRICS.pad, curY);
+    curY += METRICS.descLH;
   }
-  curY += 2;
+  curY += METRICS.gapAfterDesc;
 
-  if (section.content?.trim()) {
+  // Content (full font size, never scaled or truncated)
+  if (!card.contentEmpty) {
     pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(METRICS.contentFS);
     pdf.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
-    const isMultiLine = section.content.includes("\n");
-    const paragraphs = section.content.split("\n").filter((p) => p.trim());
-    for (const para of paragraphs) {
-      const paraLines = wrapText(pdf, para, innerW - (isMultiLine ? 4 : 2));
-      for (let i = 0; i < paraLines.length; i++) {
-        const prefix = isMultiLine && i === 0 ? "• " : isMultiLine ? "  " : "";
-        pdf.text(`${prefix}${paraLines[i]}`, x + padding + 1, curY);
-        curY += 3.2;
-      }
+    for (const line of card.contentLines) {
+      pdf.text(line, x + METRICS.pad + 1, curY);
+      curY += METRICS.contentLH;
     }
   } else {
     pdf.setFont("helvetica", "italic");
-    pdf.setFontSize(7.5);
+    pdf.setFontSize(METRICS.contentFS);
     pdf.setTextColor(EMPTY_TEXT.r, EMPTY_TEXT.g, EMPTY_TEXT.b);
-    pdf.text("Click to add content...", x + padding, curY);
+    pdf.text("Click to add content...", x + METRICS.pad, curY);
   }
 };
+
 export const usePdfExport = () => {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -142,12 +99,15 @@ export const usePdfExport = () => {
         ]);
       } catch {}
 
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      // Measure first (text width is independent of page size), then create the
+      // real page at exactly the height the content needs.
+      const measurePdf = new jsPDF({ unit: "mm", format: [PAGE.w, 1000] });
+      const layout = computeCanvasLayout(measurePdf, project);
 
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const mx = 14;
-      const usableW = pageW - mx * 2;
+      const pageW = PAGE.w;
+      const pageH = layout.pageHeight;
+      const mx = PAGE.mx;
+      const pdf = new jsPDF({ unit: "mm", format: [pageW, pageH] });
 
       // ── Two-tone top bar ──
       const barH = 2;
@@ -158,34 +118,25 @@ export const usePdfExport = () => {
 
       // ── Header ──
       const headerY = 15;
-
-      // Logo (fixed height, aspect-ratio-aware width)
       const logoH = 8;
       const logoW = logoH * 2.96;
       if (logoData) {
         pdf.addImage(logoData, "PNG", pageW - mx - logoW, headerY - 3, logoW, logoH);
       }
 
-      // Title
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(20);
       pdf.setTextColor(TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b);
       pdf.text(project.name, mx, headerY + 2);
 
-      // Subtitle row
       const subtitleY = headerY + 7;
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
       pdf.text("Governance Model Canvas", mx, subtitleY);
 
-      // Access code (right-aligned on subtitle row)
       const code = project.accessCode || "—";
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
       const codeLabel = "Access Code: ";
-      const codeLabelW = pdf.getTextWidth(codeLabel);
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(8);
       const codeW = pdf.getTextWidth(code);
@@ -194,97 +145,37 @@ export const usePdfExport = () => {
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
+      const codeLabelW = pdf.getTextWidth(codeLabel);
       pdf.text(codeLabel, codeRightX - codeW - codeLabelW, codeY);
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(BRAND_PRIMARY.r, BRAND_PRIMARY.g, BRAND_PRIMARY.b);
       pdf.text(code, codeRightX - codeW, codeY);
 
-      // Separator line below subtitle
       const sepY = subtitleY + 3;
       pdf.setDrawColor(BORDER.r, BORDER.g, BORDER.b);
       pdf.setLineWidth(0.25);
       pdf.line(mx, sepY, pageW - mx, sepY);
 
-      // ── Canvas grid ──
-      const gridStartY = sepY + 5;
-      const gap = 3;
-      const halfW = (usableW - gap) / 2;
-      const innerColW = (halfW - gap) / 2;
-
-      const strategySections = project.sections.filter((s) => s.category === "strategy");
-      const operationsSections = project.sections.filter((s) => s.category === "operations");
-      const findSection = (id: string) =>
-        strategySections.find((s) => s.id === id) || operationsSections.find((s) => s.id === id);
-
-      const labObj = findSection("lab-objectives");
-      const decMak = findSection("decision-making");
-      const leader = findSection("leadership");
-      const citInv = findSection("citizen-involvement");
-      const financ = findSection("finances");
-      const legal = findSection("legal-status");
-      const opsMgmt = findSection("operations-management");
-      const intComm = findSection("internal-communication");
-      const workGrp = findSection("working-groups");
-      const stakeh = findSection("stakeholders");
-
       // ── Category headers ──
-      const catH = 9;
-
       pdf.setFillColor(BRAND_PRIMARY.r, BRAND_PRIMARY.g, BRAND_PRIMARY.b);
-      pdf.roundedRect(mx, gridStartY, halfW, catH, 2, 2, "F");
+      pdf.roundedRect(mx, GRID_START_Y, HALF_W, CAT_H, 2, 2, "F");
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(9);
       pdf.setTextColor(255, 255, 255);
-      pdf.text("STRATEGY", mx + halfW / 2, gridStartY + 6, { align: "center" });
+      pdf.text("STRATEGY", mx + HALF_W / 2, GRID_START_Y + 6, { align: "center" });
 
       pdf.setFillColor(BRAND_SECONDARY.r, BRAND_SECONDARY.g, BRAND_SECONDARY.b);
-      pdf.roundedRect(mx + halfW + gap, gridStartY, halfW, catH, 2, 2, "F");
+      pdf.roundedRect(mx + HALF_W + GAP, GRID_START_Y, HALF_W, CAT_H, 2, 2, "F");
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(9);
       pdf.setTextColor(255, 255, 255);
-      pdf.text("OPERATIONS", mx + halfW + gap + halfW / 2, gridStartY + 6, { align: "center" });
+      pdf.text("OPERATIONS", mx + HALF_W + GAP + HALF_W / 2, GRID_START_Y + 6, { align: "center" });
 
-      // ── Row positions (shared height per row) ──
-      const r1y = gridStartY + catH + gap;
+      // ── Canvas cards ──
+      for (const card of layout.cards) {
+        drawCard(pdf, card);
+      }
 
-      const r1H = Math.max(
-        labObj ? calcCardHeight(pdf, labObj, halfW) : 0,
-        opsMgmt ? calcCardHeight(pdf, opsMgmt, halfW) : 0,
-      );
-
-      const r2y = r1y + r1H + gap;
-      const r2H = Math.max(
-        decMak ? calcCardHeight(pdf, decMak, innerColW) : 0,
-        leader ? calcCardHeight(pdf, leader, innerColW) : 0,
-      );
-
-      const r3y = r2y + r2H + gap;
-      const r3H = Math.max(citInv ? calcCardHeight(pdf, citInv, halfW) : 0);
-
-      const r4y = r3y + r3H + gap;
-      const r4H = Math.max(
-        financ ? calcCardHeight(pdf, financ, innerColW) : 0,
-        legal ? calcCardHeight(pdf, legal, innerColW) : 0,
-        intComm ? calcCardHeight(pdf, intComm, halfW) : 0,
-      );
-
-      // Working Groups y Stakeholders spanean r2 + r3
-      const tallH = r2H + gap + r3H;
-
-      // ── Strategy ──
-      if (labObj) drawSectionCard(pdf, labObj, mx, r1y, halfW, r1H);
-      if (decMak) drawSectionCard(pdf, decMak, mx, r2y, innerColW, r2H);
-      if (leader) drawSectionCard(pdf, leader, mx + innerColW + gap, r2y, innerColW, r2H);
-      if (citInv) drawSectionCard(pdf, citInv, mx, r3y, halfW, r3H);
-      if (financ) drawSectionCard(pdf, financ, mx, r4y, innerColW, r4H);
-      if (legal) drawSectionCard(pdf, legal, mx + innerColW + gap, r4y, innerColW, r4H);
-
-      // ── Operations ──
-      const ox = mx + halfW + gap;
-      if (opsMgmt) drawSectionCard(pdf, opsMgmt, ox, r1y, halfW, r1H);
-      if (workGrp) drawSectionCard(pdf, workGrp, ox, r2y, innerColW, tallH);
-      if (stakeh) drawSectionCard(pdf, stakeh, ox + innerColW + gap, r2y, innerColW, tallH);
-      if (intComm) drawSectionCard(pdf, intComm, ox, r4y, halfW, r4H);
       // ── Footer ──
       const footerY = pageH - 8;
       pdf.setDrawColor(BORDER.r, BORDER.g, BORDER.b);
