@@ -1,0 +1,34 @@
+name: Supabase Keep Alive
+
+# Prevents the free-tier Supabase project from pausing due to inactivity.
+# Supabase only counts external API requests as activity, so this pings the
+# REST API on a schedule. Runs every 3 days, or manually on demand.
+on:
+  schedule:
+    - cron: "0 8 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/keep_alive?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "HTTP status: ${status}"
+
+          if [ "${status}" != "200" ]; then
+            echo "Keep-alive ping failed: expected 200, got ${status}" >&2
+            exit 1
+          fi
+
+          echo "Keep-alive ping succeeded."
